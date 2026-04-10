@@ -1,104 +1,133 @@
 #!/usr/bin/env python3
-"""
-Simple random Hex agent - Python example.
-
-SIMPLIFIED VERSION - Just one function!
-
-Your agent receives ONE line:
-  <SIZE> <YOUR_COLOR> <MOVES>
-  Example: 11 RED 5:5:B,6:6:R
-
-Your agent outputs ONE line:
-  <ROW> <COL>
-  Example: 7 7
-
-That's it! No need to track state, handle errors, or manage game flow.
-"""
-
 import sys
-import random
-from turtle import pos
-
+from collections import deque
 
 def parse_board(line):
-    """
-    Parse the board state from one line.
-
-    Args:
-        line: Input line in format "SIZE COLOR MOVES"
-
-    Returns:
-        Tuple of (size, my_color, board_dict)
-        where board_dict is {(row, col): 'R' or 'B'}
-    """
     parts = line.strip().split(maxsplit=2)
-
-    size = int(parts[0])
-    my_color = parts[1]  # "RED" or "BLUE"
-
-    # Parse existing moves
+    if len(parts) < 2: return 11, "RED", {}
+    size, my_color = int(parts[0]), parts[1]
     board = {}
     if len(parts) == 3 and parts[2]:
-        moves_str = parts[2]
-        for move in moves_str.split(','):
-            row, col, color = move.split(':')
-            board[(int(row), int(col))] = color
-
+        for move in parts[2].split(','):
+            r, c, clr = move.split(':')
+            board[(int(r), int(c))] = clr
     return size, my_color, board
 
+def get_neighbors(r, c, size):
+    # Generator for memory efficiency and speed
+    for dr, dc in [(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0)]:
+        nr, nc = r + dr, c + dc
+        if 0 <= nr < size and 0 <= nc < size:
+            yield nr, nc
 
-def get_empty_cells(size, board):
-    """Get all empty cells on the board."""
-    empty = []
-    for row in range(size):
-        for col in range(size):
-            if (row, col) not in board:
-                empty.append((row, col))
-    return empty
+def fast_bfs(board, size, color):
+    """Ultra-lightweight 0-1 BFS to find shortest path distance."""
+    target_p = 'R' if color == 'RED' else 'B'
+    opp_p = 'B' if target_p == 'R' else 'R'
+    
+    if target_p == 'R':
+        # Start from top row (row 0)
+        queue = deque([(0, c, 0 if board.get((0, c)) == 'R' else 1) 
+                       for c in range(size) if board.get((0, c)) != 'B'])
+        is_goal = lambda r, c: r == size - 1
+    else:
+        # Start from left column (col 0)
+        queue = deque([(r, 0, 0 if board.get((r, 0)) == 'B' else 1) 
+                       for r in range(size) if board.get((r, 0)) != 'R'])
+        is_goal = lambda r, c: c == size - 1
 
+    visited = {}
+    while queue:
+        r, c, d = queue.popleft()
+        if (r, c) in visited and visited[(r, c)] <= d: continue
+        visited[(r, c)] = d
+        if is_goal(r, c): return d
+        
+        for nr, nc in get_neighbors(r, c, size):
+            cell_val = board.get((nr, nc))
+            if cell_val == opp_p: continue
+            
+            cost = 0 if cell_val == target_p else 1
+            new_d = d + cost
+            if (nr, nc) not in visited or new_d < visited[(nr, nc)]:
+                if cost == 0: queue.appendleft((nr, nc, new_d))
+                else: queue.append((nr, nc, new_d))
+    return 999
 
 def choose_move(size, my_color, board):
-    """
-    Choose your move. This is where your AI logic goes!
+    center = size // 2
+    my_p = 'R' if my_color == 'RED' else 'B'
+    opp_p = 'B' if my_p == 'R' else 'R'
+    opp_color = 'BLUE' if my_color == 'RED' else 'RED'
 
-    Args:
-        size: Board size
-        my_color: Your color ("RED" or "BLUE")
-        board: Dictionary of existing moves
+    # --- CENTER MASTERY LOGIC ---
+    
+    # 1. Opening move as RED: Always take the center
+    if not board and my_color == 'RED':
+        return (center, center)
 
-    Returns:
-        Tuple of (row, col) for your move
-    """
-    # Simple strategy: pick a random empty cell
-    empty_cells = get_empty_cells(size, board)
+    # 2. First move as BLUE: 
+    if my_color == 'BLUE' and len(board) == 1:
+        (r, c), _ = next(iter(board.items()))
+        # If the opponent (RED) took (5,5), we MUST swap to get it
+        if r == center and c == center:
+            return 'swap'
+        # If the opponent (RED) took anything else, we take (5,5) for ourselves
+        elif (center, center) not in board:
+            return (center, center)
 
-    if not empty_cells:
-        return (0, 0)  # Shouldn't happen
+    # --- EMERGENCY BLOCK & GENERAL PLAY ---
+    # (Rest of the optimized fast_bfs logic continues here)
+    baseline_opp_dist = fast_bfs(board, size, opp_color)
+    
+    # Define candidates near existing pieces
+    placed = list(board.keys())
+    candidates = set()
+    for (r, c) in placed:
+        for nr, nc in get_neighbors(r, c, size):
+            if (nr, nc) not in board:
+                candidates.add((nr, nc))
 
-    return random.choice(empty_cells)
+    # Emergency Block (distance <= 2)
+    if baseline_opp_dist <= 2:
+        for move in candidates:
+            board[move] = my_p
+            if fast_bfs(board, size, opp_color) > baseline_opp_dist:
+                del board[move]
+                return move 
+            del board[move]
 
+    # Standard Evaluative Scoring
+    best_move = next(iter(candidates)) if candidates else (center, center)
+    best_score = -9999
+    base_me = fast_bfs(board, size, my_color)
+
+    for move in candidates:
+        board[move] = my_p
+        me_gain = base_me - fast_bfs(board, size, my_color)
+        opp_loss = fast_bfs(board, size, opp_color) - baseline_opp_dist
+        del board[move]
+        
+        score = (me_gain * 2.0) + (opp_loss * 1.2)
+        if score > best_score:
+            best_score, best_move = score, move
+            
+    return best_move
 
 def main():
-    """Loop version - handles multiple moves."""
-    while True:
+    # Use sys.stdin for faster line-by-line processing
+    for line in sys.stdin:
+        if not line.strip(): continue
         try:
-            # Read the board state (one line per turn)
-            line = input()
-
-            # Parse it
-            size, my_color, board = parse_board(line)
-
-            # Choose your move
-            row, col = choose_move(size, my_color, board)
-
-            # Output your move
-            print(f"{row} {col}")
+            size, color, board = parse_board(line)
+            result = choose_move(size, color, board)
+            if result == 'swap':
+                print("swap")
+            else:
+                print(f"{result[0]} {result[1]}")
             sys.stdout.flush()
-
         except EOFError:
-            # Game ended - controller closed our stdin
             break
-
 
 if __name__ == "__main__":
     main()
