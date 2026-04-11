@@ -1,5 +1,7 @@
 # Hex Agent
 
+**Authors:** Wei-Yun Feng, Luochun Xiao
+
 This agent is designed to play the game of Hex on various board sizes using a Monte Carlo Tree Search (MCTS) architecture. It is optimized for competitive play with strict time constraints.
 
 ---
