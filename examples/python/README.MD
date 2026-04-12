@@ -32,6 +32,27 @@ python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python
 
 ---
 
+
+
+## What is implemented
+
+1. Core MCTS (UCT): built a search tree within the time limit and picks the most-visited move, including selection, expansion, simulation and backpropagation. 
+2. Simple random rollout: implemented a random cell assignment to simulate the game. Use BFS to check winner.
+3. Establish the board and win detection for the rollout function.
+4. Opening Heuristics (choose_move)
+- RED always takes center on move 1
+- BLUE swaps if RED takes center, otherwise takes center
+- MCTS for all other turns
+
+---
+## What is incomplete or could be improved
+
+1. Incorporate hex-specific rules in the rollout module
+2. Neighbor pruning at the early stage of the game.
+3. Reuse the tree between turns to improve efficiency.
+
+
+
 ## Current Features
 
 - **MCTS with UCB1 selection** — builds a search tree within the time limit and picks the most-visited move
@@ -39,6 +60,8 @@ python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python
 - **Dynamic board size support** — correctly handles 11×11, 15×15, 19×19, and 21×21
 - **Neighbor-only candidate pruning** — on large boards, only considers moves adjacent to existing stones to avoid timeouts
 - **Win detection** — BFS-based check used during tree search to identify winning positions
+
+
 
 ---
 
