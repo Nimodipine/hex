@@ -38,8 +38,8 @@ python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python
 
 1. Core MCTS (UCT): built a search tree within the time limit and picks the most-visited move, including selection, expansion, simulation and backpropagation. 
 2. Simple random rollout: implemented a random cell assignment to simulate the game. Use BFS to check winner.
-3. Establish the board and win detection for the rollout function.
-4. Opening Heuristics (choose_move)
+3. Established the board class and applied union data structure for win detection.
+4. Opening Heuristics (`choose_move`)
 - RED always takes center on move 1
 - BLUE swaps if RED takes center, otherwise takes center
 - MCTS for all other turns
