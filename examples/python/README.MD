@@ -43,7 +43,7 @@ python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python
 - RED always takes center on move 1
 - BLUE swaps if RED takes center, otherwise takes center
 - MCTS for all other turns
-5. Adopted manual garbage collect to give more time for the mcts calculation.
+5. Adopted manual garbage collect to give more time for the mcts calculation, reaches 1% forfeit rates.
 
 ---
 ## What is incomplete or could be improved
@@ -51,3 +51,4 @@ python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python
 1. Incorporate hex-specific rules in the rollout module
 2. Neighbor pruning at the early stage of the game.
 3. Reuse the tree between turns to improve efficiency.
+4. minimize the forfeit rate
