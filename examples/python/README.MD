@@ -43,6 +43,7 @@ python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python
 - RED always takes center on move 1
 - BLUE swaps if RED takes center, otherwise takes center
 - MCTS for all other turns
+5. Adopted manual garbage collect to give more time for the mcts calculation.
 
 ---
 ## What is incomplete or could be improved
