@@ -10,24 +10,24 @@ This agent is designed to play the game of Hex on various board sizes using a Mo
 
 Play as RED (human) vs the agent as BLUE:
 ```bash
-python3 gui_main.py --blue-subprocess "python3 ./examples/python/hex_agent.py"
+python3 gui_main.py --blue-subprocess "python3 ./examples/python/mcts_random_agent.py"
 ```
 
 Play as BLUE (human) vs the agent as RED:
 ```bash
-python3 gui_main.py --red-subprocess "python3 ./examples/python/hex_agent.py"
+python3 gui_main.py --red-subprocess "python3 ./examples/python/mcts_random_agent.py"
 ```
 
 Agent vs. Agent:
 ```bash
 python3 gui_main.py \
-  --red-subprocess "python3 ./examples/python/hex_agent.py" \
-  --blue-subprocess "python3 ./examples/python/hex_agent.py"
+  --red-subprocess "python3 ./examples/python/mcts_random_agent.py" \
+  --blue-subprocess "python3 ./examples/python/mcts_random_agent.py"
 ```
 
 Custom board size (e.g. 19):
 ```bash
-python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python/hex_agent.py"
+python3 gui_main.py --board-size 19 --blue-subprocess "python3 ./examples/python/mcts_random_agent.py"
 ```
 
 ---
