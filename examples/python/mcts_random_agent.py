@@ -6,14 +6,15 @@ Monte Carlo Tree Search agent for the Hex game.
 No swap rule handling (not required).
 
 Usage:
-    python3 gui_main.py --red-subprocess "python3 examples/python/mcts_agent.py"
-    python3 gui_main.py --blue-subprocess "python3 examples/python/mcts_agent.py"
+    python3 gui_main.py --red-subprocess "python3 examples/python/mcts_random_agent.py"
+    python3 gui_main.py --blue-subprocess "python3 examples/python/mcts_random_agent.py"
 """
 
 import sys
 import math
 import random
 import time
+import gc
 
 # Cell values
 EMPTY = 0
@@ -174,13 +175,13 @@ class HexBoard:
 # Fast rollout (no board copy needed)
 # ---------------------------------------------------------------------------
 
-def rollout(board, current_player):
+def rollout(board, current_player, deadline):
     """
     Randomly assign remaining empty cells alternating between players,
     then determine the winner via BFS on RED's connectivity.
 
     No board mutation — works on a snapshot of board.board and board.empty_cells.
-    Returns RED or BLUE.
+    Returns RED, BLUE, or None if the deadline was exceeded mid-rollout.
     """
     size = board.size
     empty = board.empty_cells[:]      # copy of remaining moves
@@ -203,6 +204,12 @@ def rollout(board, current_player):
 
     head = 0
     while head < len(queue):
+        # Check deadline every 32 BFS steps to avoid time.time() overhead
+        if deadline is not None and head % 32 == 0 and time.time() >= deadline:
+            # print(f"rollout: {time.time() - deadline}", file=sys.stderr)
+            # sys.stderr.flush()
+            return None   # signal: rollout incomplete, skip backprop
+
         idx = queue[head]
         head += 1
         row, col = divmod(idx, size)
@@ -294,26 +301,38 @@ def mcts_search(board, my_color, time_limit_s):
     root      = MCTSNode(board, current_player=my_color)
     deadline  = time.time() + time_limit_s
     iters     = 0
-
     while time.time() < deadline:
         # ---- Selection ----
         node = root
         while not node.is_terminal() and node.is_fully_expanded():
             node = node.best_child()
-
+        if time.time() >= deadline:
+            # print(f"selection: {time.time() - deadline}", file=sys.stderr)
+            # sys.stderr.flush()
+            break
         # ---- Expansion ----
         if not node.is_terminal() and not node.is_fully_expanded():
             node = node.expand()
-
+        if time.time() >= deadline:
+            # print(f"expansion: {time.time() - deadline}", file=sys.stderr)
+            # sys.stderr.flush()
+            break
         # ---- Simulation ----
         if node.is_terminal():
             winner = node.board.winner()
         else:
-            winner = rollout(node.board, node.current_player)
-
+            winner = rollout(node.board, node.current_player, deadline)
+        if time.time() >= deadline:
+            # print(f"simulation: {time.time() - deadline}", file=sys.stderr)
+            # sys.stderr.flush()
+            break
         # ---- Backpropagation ----
         cur = node
-        while cur is not None:
+        while cur is not None and winner is not None:
+            if time.time() >= deadline:
+                # print(f"backpropagation: {time.time() - deadline}", file=sys.stderr)
+                # sys.stderr.flush()
+                break
             cur.visits += 1
             # mover = the player who moved TO reach cur = opponent of current_player
             mover = BLUE if cur.current_player == RED else RED
@@ -330,7 +349,6 @@ def mcts_search(board, my_color, time_limit_s):
         # No time for even one iteration — fall back to random
         idx = random.choice(board.empty_cells)
         return divmod(idx, board.size)
-
     # Pick child with most visits (most robust estimate)
     best = max(root.children, key=lambda ch: ch.visits)
     return divmod(best.move, board.size)
@@ -386,12 +404,12 @@ def choose_move(size, board, my_color, time_limit):
 # Time budget per board size
 # ---------------------------------------------------------------------------
 
-# Use ~80 % of the allotted time to leave room for I/O and overhead.
+# leave 50ms for I/O and overhead.
 _TIME_BUDGET = {
-    11: 0.12,   # limit 150 ms → use 120 ms
-    15: 0.16,   # limit 200 ms → use 160 ms
+    11: 0.10,   # limit 150 ms → use 120 ms
+    15: 0.15,   # limit 200 ms → use 160 ms
     19: 0.20,   # limit 250 ms → use 200 ms
-    21: 0.24,   # limit 300 ms → use 240 ms
+    21: 0.25,   # limit 300 ms → use 240 ms
 }
 _DEFAULT_TIME = 0.08   # fallback for other sizes (default limit is 1 s)
 
@@ -406,13 +424,24 @@ def main():
             line = input()
         except EOFError:
             break
-
-        size, my_color, board = parse_input(line)
-        time_limit = _TIME_BUDGET.get(size, _DEFAULT_TIME)
-        result = choose_move(size, board, my_color, time_limit)
-        print('swap' if result == 'swap' else f"{result[0]} {result[1]}")
-        sys.stdout.flush()
-
+        
+        # line = '11 BLUE 0:5:B,1:7:B,1:9:B,2:0:B,2:2:R,2:9:B,3:2:R,3:5:R,3:7:R,3:8:B,3:9:R,4:3:R,4:5:R,4:6:R,4:7:R,4:8:R,5:4:R,5:5:B,5:6:R,5:8:R,6:1:R,6:3:R,6:4:R,6:9:B,7:2:R,7:9:B,8:3:B,8:4:B,8:5:B,9:3:B,9:8:B,10:5:B,10:10:B'
+        # print(line, file=sys.stderr)
+        # size, my_color, board = parse_input(line)
+        # time_limit = _TIME_BUDGET.get(size, _DEFAULT_TIME)
+        # result = choose_move(size, board, my_color, time_limit)
+        # print('swap' if result == 'swap' else f"{result[0]} {result[1]}")
+        # sys.stdout.flush()
+        gc.disable()                      # stop GC during our turn
+        try:
+            size, my_color, board = parse_input(line)
+            time_limit = _TIME_BUDGET.get(size, _DEFAULT_TIME)
+            result = choose_move(size, board, my_color, time_limit)
+            print('swap' if result == 'swap' else f"{result[0]} {result[1]}")
+            sys.stdout.flush()
+        finally:
+            gc.enable()
+        gc.collect()                      # GC runs NOW, after move is sent
 
 if __name__ == '__main__':
     main()
