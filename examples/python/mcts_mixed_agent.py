@@ -578,17 +578,17 @@ def choose_move(size, board, my_color, time_limit):
     my_stones = (stones_placed + 1) // 2 if my_color == RED else stones_placed // 2
     step = my_stones + 1   # the move we are about to make (1-indexed)
 
-    # Steps 1-5: bridge-forming phase
+    # early game: bridge-forming phase
     if step <= size // 2 :
         return bridge_move_random(board, my_color)
 
-    # Steps 6-15: cut the opponent's shortest path
-    if step <= 30:
+    # mid game: cut the opponent's shortest path
+    if step <= size * size // 4:
         cuts = cut_cells(board, my_color)
         if cuts:
             return divmod(random.choice(cuts), size)
 
-    # Steps 16+: full MCTS
+    # rest: full MCTS
     return mcts_search(board, my_color, time_limit)
 
 
