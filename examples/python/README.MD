@@ -86,8 +86,8 @@ This agent uses only Python standard library modules — no third-party packages
 1. **Phased move selection (`choose_move`):** the agent uses three distinct strategies depending on how many moves it has already placed:
    - **Opening heuristics:** RED always takes the center on move 1. BLUE swaps if RED takes center, otherwise takes center itself.
    - **Early game — bridge-building phase (steps 1 to `size // 2`):** plays `bridge_move_random()`, which finds an empty cell that forms a virtual connection (bridge) with an existing friendly stone. A bridge between anchor A and partner B requires both shared corridor cells to also be empty. Falls back to a random cell in the middle third of the board if no bridges are available.
-   - **Mid game — cut phase (steps up to 30):** plays `cut_cells()`, which identifies every empty cell that lies on at least one of the opponent's minimum-resistance paths and picks one at random to block.
-   - **Late game (step 30+):** runs full MCTS via `mcts_search()`.
+   - **Mid game — cut phase (steps up to size * size // 4):** plays `cut_cells()`, which identifies every empty cell that lies on at least one of the opponent's minimum-resistance paths and picks one at random to block.
+   - **Late game (to the end):** runs full MCTS via `mcts_search()`.
 
 2. **Shortest-path cut detection (`cut_cells`):** runs two passes of 0-1 BFS — one forward from the opponent's start edge, one backward from their goal edge — and marks any empty cell `v` as a cut cell if `dist_fwd[v] + 1 + dist_bwd[v] == shortest`. Placing on a cut cell always forces the opponent to find a new route.
 
